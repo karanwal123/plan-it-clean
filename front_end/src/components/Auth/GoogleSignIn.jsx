@@ -3,7 +3,7 @@ import React from "react";
 export default function GoogleSignIn() {
   const handleGoogleSignIn = () => {
     // Redirect to Google OAuth
-    window.location.href = "http://localhost:5000/api/auth/google";
+    window.location.href = `${import.meta.env.VITE_API_URL}/auth/google`;
   };
 
   return (

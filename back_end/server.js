@@ -10,6 +10,7 @@ import passport from "./config/passport.js";
 dotenv.config();
 
 const app = express();
+app.use(express.json());
 
 // Connect to database
 connectDB();

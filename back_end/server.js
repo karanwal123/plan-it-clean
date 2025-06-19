@@ -16,7 +16,7 @@ app.use(express.json());
 connectDB();
 
 const allowedOrigins = [
-  "http://localhost:5173",
+  "https://localhost:5173",
   "https://plan-it-clean.vercel.app",
   "https://plan-it-clean-ha1u6m89t-aditya-karanwals-projects.vercel.app", // ✅ add this line
 ];

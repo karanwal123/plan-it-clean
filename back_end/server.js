@@ -14,16 +14,23 @@ const app = express();
 // Connect to database
 connectDB();
 
-// Middleware
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://plan-it-clean.vercel.app",
+];
+
 app.use(
   cors({
-    origin: "http://localhost:5173", // <-- frontend's port
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("CORS blocked: " + origin));
+      }
+    },
     credentials: true,
   })
 );
-app.use(express.json());//middleware that lets your backend automatically parse JSON data sent in the body of incoming requests.
-
-
 
 // Session middleware (required for Passport)
 app.use(

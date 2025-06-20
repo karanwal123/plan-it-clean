@@ -27,14 +27,25 @@ router.get(
         expiresIn: "7d",
       });
 
-      res.redirect(`${process.env.FRONTEND_URL}/auth/success?token=${token}`);
+      // Option 1: Store token in httpOnly cookie (most secure)
+      res.cookie("auth_token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      });
+
+      // Redirect directly to dashboard
+      res.redirect(`${process.env.FRONTEND_URL}/dashboard`);
+
+      // Option 2: If you prefer URL parameter (less secure but simpler)
+      // res.redirect(`${process.env.FRONTEND_URL}/dashboard?token=${token}`);
     } catch (error) {
       console.error("OAuth callback error:", error);
       res.redirect(`${process.env.FRONTEND_URL}/auth?error=callback_failed`);
     }
   }
 );
-
 // Traditional register (keep for fallback)
 router.post("/register", async (req, res) => {
   try {

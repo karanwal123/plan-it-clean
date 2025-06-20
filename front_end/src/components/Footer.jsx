@@ -1,5 +1,5 @@
 import React from "react";
-import { Github, Linkedin, Heart } from "lucide-react";
+import { Github, Linkedin, Heart, ExternalLink } from "lucide-react";
 
 const Footer = () => {
   return (
@@ -35,6 +35,16 @@ const Footer = () => {
             >
               <Linkedin size={20} />
               <span>LinkedIn</span>
+            </a>
+
+            <a
+              href="https://dog-zone-ebf.notion.site/About-me-173c0f234b3e80688bbbfd1570fa7b41"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 text-gray-300 hover:text-[#89ECDB] transition-colors duration-200"
+            >
+              <ExternalLink size={20} />
+              <span>Notion</span>
             </a>
           </div>
         </div>

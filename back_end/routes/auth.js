@@ -27,19 +27,18 @@ router.get(
         expiresIn: "7d",
       });
 
-      // Option 1: Store token in httpOnly cookie (most secure)
+      // Set secure cookie with the token
       res.cookie("auth_token", token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        domain:
+          process.env.NODE_ENV === "production" ? ".vercel.app" : undefined,
       });
 
-      // Redirect directly to dashboard
+      // FIXED: Redirect directly to dashboard instead of success page
       res.redirect(`${process.env.FRONTEND_URL}/dashboard`);
-
-      // Option 2: If you prefer URL parameter (less secure but simpler)
-      // res.redirect(`${process.env.FRONTEND_URL}/dashboard?token=${token}`);
     } catch (error) {
       console.error("OAuth callback error:", error);
       res.redirect(`${process.env.FRONTEND_URL}/auth?error=callback_failed`);

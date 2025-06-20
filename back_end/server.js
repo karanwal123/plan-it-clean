@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import session from "express-session";
+import cookieParser from "cookie-parser"; // ADD THIS
 import connectDB from "./config/db.js";
 import authRoutes from "./routes/auth.js";
 import protectedRoutes from "./routes/protected.js";
@@ -10,17 +11,19 @@ import passport from "./config/passport.js";
 dotenv.config();
 
 const app = express();
+
+// IMPORTANT: Add cookie parser before other middleware
+app.use(cookieParser());
 app.use(express.json());
 
 // Connect to database
 connectDB();
 
 const allowedOrigins = [
-  "https://localhost:5173",
+  "http://localhost:5173", // FIXED: Changed from https to http for local dev
   "https://plan-it-clean.vercel.app",
-  "https://plan-it-clean-ha1u6m89t-aditya-karanwals-projects.vercel.app", // ✅ add this line
+  "https://plan-it-clean-ha1u6m89t-aditya-karanwals-projects.vercel.app",
 ];
-
 
 app.use(
   cors({
@@ -39,12 +42,13 @@ app.use(
 app.use(
   session({
     secret: process.env.SESSION_SECRET,
-    resave: false, //Don’t save the session to the store if nothing has changed.
-    saveUninitialized: false, //Don’t create a session until something is stored in it (like req.user).
-    // ------- //
+    resave: false,
+    saveUninitialized: false,
     cookie: {
-      secure: false, // Send cookies over HTTP ||  Set to true in production with HTTPS
+      secure: process.env.NODE_ENV === "production", // FIXED: Dynamic based on environment
+      httpOnly: true, // ADD THIS for security
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // FIXED: For cross-origin
     },
   })
 );
@@ -65,4 +69,6 @@ app.get("/", (req, res) => {
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}`);
+  console.log(`🔗 Frontend URL: ${process.env.FRONTEND_URL}`);
 });

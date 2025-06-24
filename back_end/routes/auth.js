@@ -38,7 +38,7 @@ router.get(
       });
 
       // FIXED: Redirect directly to dashboard instead of success page
-      res.redirect(`${process.env.FRONTEND_URL}`);
+      res.redirect(`${process.env.FRONTEND_URL}/dashboard`);
     } catch (error) {
       console.error("OAuth callback error:", error);
       res.redirect(`${process.env.FRONTEND_URL}/auth?error=callback_failed`);

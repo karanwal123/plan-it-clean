@@ -22,7 +22,7 @@ function LoadingScreen() {
 }
 
 function ProtectedRoute({ children }) {
-  const { token, loading } = useAuth();
+  const { user, loading } = useAuth();
   if (loading) return <LoadingScreen />;
   return user ? children : <Navigate to="/auth" replace />;
 }

@@ -63,7 +63,10 @@ app.use("/api/user", protectedRoutes);
 
 // Basic route
 app.get("/", (req, res) => {
-  res.json({ message: "Plan-it API Server with Google OAuth" });
+  res.json({
+    message:
+      "Plan-it API Server with Google OAuth..right now this code was triggered app.get(/)",
+  });
 });
 
 const PORT = process.env.PORT || 5000;

@@ -3,10 +3,12 @@ import jwt from "jsonwebtoken";
 import passport from "../config/passport.js";
 import User from "../models/User.js";
 import auth from "../middleware/auth.js";
-
+import AuthSuccess from "../../front_end/src/components/Auth/AuthSuccess.jsx";
 const router = express.Router();
 
+// --------------------------------------------------
 // Google OAuth routes
+// --------------------------------------------------
 router.get(
   "/google",
   passport.authenticate("google", { scope: ["profile", "email"] })
@@ -23,29 +25,23 @@ router.get(
         return res.redirect(`${process.env.FRONTEND_URL}/auth?error=no_user`);
       }
 
+      // Generate JWT token
       const token = jwt.sign({ userId: req.user._id }, process.env.JWT_SECRET, {
         expiresIn: "7d",
       });
 
-      // Set secure cookie with the token
-      res.cookie("auth_token", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-        domain:
-          process.env.NODE_ENV === "production" ? ".vercel.app" : undefined,
-      });
-
-      // FIXED: Redirect directly to dashboard instead of success page
-      res.redirect(`${process.env.FRONTEND_URL}/dashboard`);
+      // Redirect with token in query string
+      res.redirect(`${FRONTEND_URL}/auth/success?token=${token}`);
     } catch (error) {
       console.error("OAuth callback error:", error);
       res.redirect(`${process.env.FRONTEND_URL}/auth?error=callback_failed`);
     }
   }
 );
-// Traditional register (keep for fallback)
+
+// --------------------------------------------------
+// Traditional register (fallback)
+// --------------------------------------------------
 router.post("/register", async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -53,17 +49,15 @@ router.post("/register", async (req, res) => {
     if (existingUser) {
       return res.status(400).json({ message: "User already exists" });
     }
-    const user = new User({
-      name,
-      email,
-      password,
-      authProvider: "local",
-    });
+
+    const user = new User({ name, email, password, authProvider: "local" });
     await user.save();
-    // Create token
+
+    // Issue JWT
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
       expiresIn: "7d",
     });
+
     res.status(201).json({
       token,
       user: {
@@ -79,7 +73,10 @@ router.post("/register", async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
-// Traditional login (keep for fallback)
+
+// --------------------------------------------------
+// Traditional login (fallback)
+// --------------------------------------------------
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -87,20 +84,19 @@ router.post("/login", async (req, res) => {
     if (!user) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
-    // Check if Google-authenticated
+
     if (user.authProvider === "google") {
       return res.status(400).json({
         message: "Please sign in with Google for this account",
       });
     }
 
-    // Check password
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    // Create token
+    // Issue JWT
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
       expiresIn: "7d",
     });
@@ -121,6 +117,9 @@ router.post("/login", async (req, res) => {
   }
 });
 
+// --------------------------------------------------
+// Protected user info
+// --------------------------------------------------
 router.get("/me", auth, async (req, res) => {
   try {
     res.json({
@@ -137,10 +136,8 @@ router.get("/me", auth, async (req, res) => {
     });
   } catch (error) {
     console.error("Get user error:", error);
-    res.status(500).json({
-      message: "Failed to get user data",
-      error: error.message,
-    });
+    res.status(500).json({ message: "Failed to get user data" });
   }
 });
+
 export default router;

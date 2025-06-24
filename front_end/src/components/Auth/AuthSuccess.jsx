@@ -1,36 +1,54 @@
-// src/components/Auth/AuthSuccess.jsx
-import React, { useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext";
+// src/context/AuthContext.jsx
+import React, { createContext, useContext, useState, useEffect } from "react";
+import axios from "axios";
 
-export default function AuthSuccess() {
-  const { loading, setTokenFromUrl } = useAuth();
-  const navigate = useNavigate();
-  const { search } = useLocation();
+const AuthContext = createContext();
 
+export function AuthProvider({ children }) {
+  // start by loading any existing token
+  const [token, setToken] = useState(
+    () => localStorage.getItem("auth_token") || null
+  );
+  const [loading, setLoading] = useState(false);
+
+  // whenever token changes, sync axios header
   useEffect(() => {
-    (async () => {
-      if (loading) return;
-      const params = new URLSearchParams(search);
-      const token = params.get("token");
-      console.log("AuthSuccess, token:", token);
+    if (token) {
+      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+    } else {
+      delete axios.defaults.headers.common["Authorization"];
+    }
+  }, [token]);
 
-      if (!token) return navigate("/auth", { replace: true });
+  // called by AuthSuccess, or anywhere you get a fresh token
+  const setTokenFromUrl = async (newToken) => {
+    setLoading(true);
+    // persist it
+    localStorage.setItem("auth_token", newToken);
+    setToken(newToken);
+    setLoading(false);
+  };
 
-      try {
-        await setTokenFromUrl(token);
-        console.log("Token set, navigating to dashboard");
-        navigate("/dashboard", { replace: true });
-      } catch (err) {
-        console.error("setTokenFromUrl failed:", err);
-        navigate("/auth", { replace: true });
-      }
-    })();
-  }, [loading, search, setTokenFromUrl, navigate]);
+  const logout = () => {
+    localStorage.removeItem("auth_token");
+    setToken(null);
+  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#2B3638] text-[#89ECDB]">
-      <p className="text-xl">Signing you in…</p>
-    </div>
+    <AuthContext.Provider
+      value={{
+        token,
+        loading,
+        setTokenFromUrl,
+        logout,
+        isAuthenticated: !!token,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
   );
+}
+
+export function useAuth() {
+  return useContext(AuthContext);
 }

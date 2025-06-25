@@ -36,7 +36,9 @@ export const AuthProvider = ({ children }) => {
       return false;
     }
     try {
-      const res = await axios.get("/auth/me");
+      const res = await axios.get("/auth/me", {
+        withCredentials: true,
+      });
       setUser(res.data.user);
       return true;
     } catch (err) {
@@ -60,7 +62,13 @@ export const AuthProvider = ({ children }) => {
   // SIGN UP
   const register = async (name, email, password) => {
     try {
-      const res = await axios.post("/auth/register", { name, email, password });
+      const res = await axios.post(
+        "/auth/register",
+        { name, email, password },
+        {
+          withCredentials: true,
+        }
+      );
       const { token: newToken, user: newUser } = res.data;
       localStorage.setItem("token", newToken);
       setToken(newToken);
@@ -77,7 +85,13 @@ export const AuthProvider = ({ children }) => {
   // SIGN IN
   const login = async (email, password) => {
     try {
-      const res = await axios.post("/auth/login", { email, password });
+      const res = await axios.post(
+        "/auth/login",
+        { email, password },
+        {
+          withCredentials: true,
+        }
+      );
       const { token: newToken, user: loggedInUser } = res.data;
       localStorage.setItem("token", newToken);
       setToken(newToken);

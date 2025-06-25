@@ -37,8 +37,8 @@ router.get(
           process.env.NODE_ENV === "production" ? ".vercel.app" : undefined,
       });
 
-      // FIXED: Redirect directly to dashboard instead of success page
-      res.redirect(`${process.env.FRONTEND_URL}/dashboard`);
+      // FIXED: Redirect to auth success page for token extraction
+      res.redirect(`${process.env.FRONTEND_URL}/auth/success`);
     } catch (error) {
       console.error("OAuth callback error:", error);
       res.redirect(`${process.env.FRONTEND_URL}/auth?error=callback_failed`);
@@ -123,6 +123,14 @@ router.post("/login", async (req, res) => {
 
 router.get("/me", auth, async (req, res) => {
   try {
+    // Try to get token from header or cookie
+    let token = null;
+    const authHeader = req.header("Authorization");
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      token = authHeader.replace("Bearer ", "");
+    } else if (req.cookies && req.cookies.auth_token) {
+      token = req.cookies.auth_token;
+    }
     res.json({
       success: true,
       user: {
@@ -134,6 +142,7 @@ router.get("/me", auth, async (req, res) => {
         preferences: req.user.preferences,
         savedRoutes: req.user.savedRoutes,
       },
+      token, // Include token in response
     });
   } catch (error) {
     console.error("Get user error:", error);

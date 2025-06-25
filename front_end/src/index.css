@@ -10,6 +10,13 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: "Gilroy";
+  src: url("/fonts/Gilroy-Bold.ttf") format("truetype");
+  font-weight: bold;
+  font-style: normal;
+}
+
 body {
-  font-family: "Karin", sans-serif;
+  font-family: "Karin", "Gilroy", sans-serif;
 }

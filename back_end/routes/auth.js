@@ -27,14 +27,13 @@ router.get(
         expiresIn: "7d",
       });
 
-      // Set secure cookie with the token
+      // Set secure cookie with the token (always correct for production)
       res.cookie("auth_token", token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+        secure: true, // Always true in production
+        sameSite: "none", // Always 'none' in production
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-        domain:
-          process.env.NODE_ENV === "production" ? ".vercel.app" : undefined,
+        domain: ".vercel.app", // Always .vercel.app in production
       });
 
       // FIXED: Redirect to auth success page for token extraction

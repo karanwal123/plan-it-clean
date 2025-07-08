@@ -9,11 +9,8 @@ passport.use(
     {
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      // Use full HTTPS URL instead of relative path
-      callbackURL:
-        process.env.NODE_ENV === "production"
-          ? "https://plan-it-clean.onrender.com/api/auth/google/callback"
-          : "http://localhost:5000/api/auth/google/callback", // Adjust port as needed
+      // Use environment variable for callback URL
+      callbackURL: process.env.GOOGLE_CALLBACK_URL,
     },
     async (accessToken, refreshToken, profile, done) => {
       try {

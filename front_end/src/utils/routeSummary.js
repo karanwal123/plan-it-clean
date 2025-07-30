@@ -1,5 +1,32 @@
 // src/utils/routeSummary.js
 
+// Helper function for retry logic with exponential backoff
+async function retryWithBackoff(fn, maxRetries = 3, baseDelay = 1000) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      const isLastAttempt = attempt === maxRetries - 1;
+      const is503Error =
+        error.message.includes("503") ||
+        error.message.includes("Service Unavailable");
+
+      if (is503Error && !isLastAttempt) {
+        const delay = baseDelay * Math.pow(2, attempt); // Exponential backoff
+        console.log(
+          `API overloaded, retrying in ${delay}ms... (attempt ${
+            attempt + 1
+          }/${maxRetries})`
+        );
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        continue;
+      }
+
+      throw error; // Re-throw if not a 503 or if last attempt
+    }
+  }
+}
+
 export async function generateRouteSummary(orderedLocations) {
   if (!orderedLocations || orderedLocations.length < 2) {
     return "";
@@ -27,73 +54,86 @@ Write me a short, engaging paragraph (under 100 words) telling the traveler:
 Keep the tone warm, helpful, and exciting. Use phrases like "Next, head over to..." or "From there, make your way to..." to create smooth transitions between locations.`;
 
   try {
-    // Using Gemini API
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${
-        import.meta.env.VITE_GEMINI_API_KEY
-      }`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
+    // Wrap the API call in retry logic
+    const result = await retryWithBackoff(
+      async () => {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${
+            import.meta.env.VITE_GEMINI_API_KEY
+          }`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              contents: [
                 {
-                  text: prompt,
+                  parts: [
+                    {
+                      text: prompt,
+                    },
+                  ],
                 },
               ],
-            },
-          ],
-          generationConfig: {
-            temperature: 0.8,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 150,
-            stopSequences: [],
-          },
-          safetySettings: [
-            {
-              category: "HARM_CATEGORY_HARASSMENT",
-              threshold: "BLOCK_MEDIUM_AND_ABOVE",
-            },
-            {
-              category: "HARM_CATEGORY_HATE_SPEECH",
-              threshold: "BLOCK_MEDIUM_AND_ABOVE",
-            },
-            {
-              category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-              threshold: "BLOCK_MEDIUM_AND_ABOVE",
-            },
-            {
-              category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-              threshold: "BLOCK_MEDIUM_AND_ABOVE",
-            },
-          ],
-        }),
-      }
-    );
+              generationConfig: {
+                temperature: 0.8,
+                topK: 40,
+                topP: 0.95,
+                maxOutputTokens: 150,
+                stopSequences: [],
+              },
+              safetySettings: [
+                {
+                  category: "HARM_CATEGORY_HARASSMENT",
+                  threshold: "BLOCK_MEDIUM_AND_ABOVE",
+                },
+                {
+                  category: "HARM_CATEGORY_HATE_SPEECH",
+                  threshold: "BLOCK_MEDIUM_AND_ABOVE",
+                },
+                {
+                  category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                  threshold: "BLOCK_MEDIUM_AND_ABOVE",
+                },
+                {
+                  category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+                  threshold: "BLOCK_MEDIUM_AND_ABOVE",
+                },
+              ],
+            }),
+          }
+        );
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Gemini API error:", response.status, errorText);
-      throw new Error(`HTTP ${response.status}: ${errorText}`);
-    }
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Gemini API error:", response.status, errorText);
+          throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
 
-    const data = await response.json();
+        return response.json();
+      },
+      3,
+      1000
+    ); // 3 retries, starting with 1 second delay
 
     // Extract the generated text from Gemini's response format
-    if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-      const generatedText = data.candidates[0].content.parts[0].text;
+    if (
+      result.candidates &&
+      result.candidates[0] &&
+      result.candidates[0].content
+    ) {
+      const generatedText = result.candidates[0].content.parts[0].text;
       return generatedText.trim();
     } else {
-      console.error("Unexpected Gemini API response format:", data);
+      console.error("Unexpected Gemini API response format:", result);
       return generateFallbackSummary(orderedLocations);
     }
   } catch (error) {
-    console.error("Error generating route summary with Gemini:", error);
+    console.error(
+      "Error generating route summary with Gemini after retries:",
+      error
+    );
     return generateFallbackSummary(orderedLocations);
   }
 }
@@ -127,7 +167,7 @@ function generateFallbackSummary(orderedLocations) {
   return summary;
 }
 
-// Alternative function using Gemini Pro model for more detailed summaries
+// Enhanced detailed route summary with retry logic
 export async function generateDetailedRouteSummary(orderedLocations) {
   if (!orderedLocations || orderedLocations.length < 2) {
     return "";
@@ -156,95 +196,115 @@ Please provide:
 Keep it conversational, informative, and under 200 words.`;
 
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${
-        import.meta.env.VITE_GEMINI_API_KEY
-      }`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: prompt,
-                },
-              ],
-            },
-          ],
-          generationConfig: {
-            temperature: 0.7,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 250,
+    const result = await retryWithBackoff(async () => {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${
+          import.meta.env.VITE_GEMINI_API_KEY
+        }`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
           },
-        }),
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  {
+                    text: prompt,
+                  },
+                ],
+              },
+            ],
+            generationConfig: {
+              temperature: 0.7,
+              topK: 40,
+              topP: 0.95,
+              maxOutputTokens: 250,
+            },
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
-    );
 
-    if (!response.ok) {
-      console.error("Gemini Pro API error:", response.status);
-      return generateFallbackSummary(orderedLocations);
-    }
+      return response.json();
+    });
 
-    const data = await response.json();
-
-    if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-      return data.candidates[0].content.parts[0].text.trim();
+    if (
+      result.candidates &&
+      result.candidates[0] &&
+      result.candidates[0].content
+    ) {
+      return result.candidates[0].content.parts[0].text.trim();
     } else {
       return generateFallbackSummary(orderedLocations);
     }
   } catch (error) {
-    console.error("Error with Gemini Pro API:", error);
+    console.error("Error with Gemini Pro API after retries:", error);
     return generateFallbackSummary(orderedLocations);
   }
 }
 
-// Function to get location insights using Gemini
+// Enhanced location insights with retry logic
 export async function getLocationInsights(locationName) {
   const prompt = `Provide 2-3 brief, interesting facts or tips about visiting ${locationName}. Keep it under 50 words and focus on practical visitor information.`;
 
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${
-        import.meta.env.VITE_GEMINI_API_KEY
-      }`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
+    const result = await retryWithBackoff(
+      async () => {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${
+            import.meta.env.VITE_GEMINI_API_KEY
+          }`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              contents: [
                 {
-                  text: prompt,
+                  parts: [
+                    {
+                      text: prompt,
+                    },
+                  ],
                 },
               ],
-            },
-          ],
-          generationConfig: {
-            temperature: 0.6,
-            maxOutputTokens: 80,
-          },
-        }),
-      }
-    );
+              generationConfig: {
+                temperature: 0.6,
+                maxOutputTokens: 80,
+              },
+            }),
+          }
+        );
 
-    if (response.ok) {
-      const data = await response.json();
-      if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-        return data.candidates[0].content.parts[0].text.trim();
-      }
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
+
+        return response.json();
+      },
+      2,
+      1500
+    ); // 2 retries for insights, 1.5 second base delay
+
+    if (
+      result.candidates &&
+      result.candidates[0] &&
+      result.candidates[0].content
+    ) {
+      return result.candidates[0].content.parts[0].text.trim();
     }
 
     return null;
   } catch (error) {
-    console.error("Error getting location insights:", error);
+    console.error("Error getting location insights after retries:", error);
     return null;
   }
 }

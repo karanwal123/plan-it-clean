@@ -26,6 +26,7 @@
 │  Plan-it:    A→C→B→A (✅ 32km, 1.5hrs) │
 └─────────────────────────────────────────┘
 ```
+<img width="1917" height="967" alt="image" src="https://github.com/user-attachments/assets/30652dd7-ca53-47cd-8f97-ec4baf6faff7" />
 
 Plan-it is a smart route optimization application that solves the limitations of traditional mapping solutions like Google Maps when dealing with multiple destinations.
 
